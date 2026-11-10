@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lente</string>
+    <string name="settings">Impostazioni</string>
+
+    <!-- Yellow on black: the classic low-vision palette (contrast ratio about 17:1). -->
+    <color name="fg">#FFE000</color>
+    <color name="fg_dim">#806F00</color>
+    <color name="bg">#000000</color>
+    <color name="button_bg">#1A1A1A</color>
+    <color name="pressed">#4D4300</color>
+
+    <style name="Theme.Lente" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:colorAccent">@color/fg</item>
+        <item name="android:colorPrimary">@color/bg</item>
+        <item name="android:colorControlActivated">@color/fg</item>
+        <item name="android:textColor">@color/fg</item>
+        <item name="android:textColorPrimary">@color/fg</item>
+        <item name="android:textColorSecondary">@color/fg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:fontFamily">@font/atkinson</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+    <!-- Big labelled button: at least 80dp tall, icon above a text label. -->
+    <style name="BigButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:minHeight">80dp</item>
+        <item name="android:layout_margin">3dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:paddingLeft">2dp</item>
+        <item name="android:paddingRight">2dp</item>
+        <item name="android:drawablePadding">2dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/fg</item>
+        <item name="android:background">@drawable/big_button_bg</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:fontFamily">@font/atkinson</item>
+    </style>
+
+    <!-- Landscape: two buttons per row in the right-hand column. -->
+    <style name="BigButtonLand" parent="BigButton">
+        <item name="android:minHeight">72dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+    </style>
+
+    <style name="LandRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+</resources>
