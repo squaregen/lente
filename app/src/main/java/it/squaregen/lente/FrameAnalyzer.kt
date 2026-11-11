@@ -28,9 +28,28 @@ class FrameAnalyzer(private val listener: Listener) : ImageAnalysis.Analyzer {
          * coordinates of the un-rotated camera buffer (what metering point factories expect).
          */
         fun onTextScan(found: Boolean, bufferX: Float, bufferY: Float)
+        /** Guided capture only (main thread): where the text sits in the picture. */
+        fun onGuide(info: GuideInfo) {}
     }
 
+    /**
+     * Framing of the text in the camera picture, used to guide the user before taking the photo.
+     * The "touches" flags say that a line of text reaches that edge, so text is probably cut off.
+     */
+    class GuideInfo(
+        val found: Boolean,
+        val lines: Int,
+        val touchesLeft: Boolean,
+        val touchesTop: Boolean,
+        val touchesRight: Boolean,
+        val touchesBottom: Boolean,
+        val meanLuma: Float,
+    )
+
     @Volatile var ocrEnabled = true
+    /** While guiding, recognise every frame (as fast as the phone allows) instead of once a second. */
+    @Volatile var guideMode = false
+    @Volatile private var lastMeanLuma = 128f
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     @Volatile private var ocrBusy = false
@@ -44,7 +63,8 @@ class FrameAnalyzer(private val listener: Listener) : ImageAnalysis.Analyzer {
         }
         val now = SystemClock.elapsedRealtime()
         val media = image.image
-        if (ocrEnabled && !ocrBusy && media != null && now - lastOcr > 900) {
+        val interval = if (guideMode) 0 else 900
+        if ((ocrEnabled || guideMode) && !ocrBusy && media != null && now - lastOcr > interval) {
             ocrBusy = true
             lastOcr = now
             val rotation = image.imageInfo.rotationDegrees
@@ -101,10 +121,12 @@ class FrameAnalyzer(private val listener: Listener) : ImageAnalysis.Analyzer {
         for (i in 0..255) { acc += hist[i]; if (acc >= n * 0.05) { dark = i; break } }
         acc = 0
         for (i in 255 downTo 0) { acc += hist[i]; if (acc >= n * 0.05) { light = i; break } }
+        lastMeanLuma = sumLuma.toFloat() / n
         listener.onFrameStats(sumGrad.toFloat() / n, sumLuma.toFloat() / n, dark, light)
     }
 
     private fun report(text: Text?, rotation: Int, w: Int, h: Int) {
+        if (guideMode) reportGuide(text, rotation, w, h)
         if (text == null) {
             listener.onTextScan(false, 0.5f, 0.5f)
             return
@@ -140,6 +162,30 @@ class FrameAnalyzer(private val listener: Listener) : ImageAnalysis.Analyzer {
             else -> u to v
         }
         listener.onTextScan(true, bx, by)
+    }
+
+    private fun reportGuide(text: Text?, rotation: Int, w: Int, h: Int) {
+        val uprightW = (if (rotation % 180 == 0) w else h).toFloat()
+        val uprightH = (if (rotation % 180 == 0) h else w).toFloat()
+        val margin = 0.025f
+        var lines = 0
+        var letters = 0
+        var l = false; var t = false; var r = false; var b = false
+        text?.textBlocks?.forEach { block ->
+            block.lines.forEach { line ->
+                val count = line.text.count { it.isLetterOrDigit() }
+                letters += count
+                if (count >= 2) lines++
+                line.boundingBox?.let { box ->
+                    if (box.left / uprightW < margin) l = true
+                    if (box.top / uprightH < margin) t = true
+                    if (box.right / uprightW > 1 - margin) r = true
+                    if (box.bottom / uprightH > 1 - margin) b = true
+                }
+            }
+        }
+        val found = letters >= 12
+        listener.onGuide(GuideInfo(found, lines, l && found, t && found, r && found, b && found, lastMeanLuma))
     }
 
     fun close() = recognizer.close()

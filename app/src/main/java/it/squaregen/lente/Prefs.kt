@@ -47,6 +47,40 @@ class Prefs(context: Context) {
             else -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
 
+    /** Highest magnification offered (camera zoom, then enlarging the picture itself). */
+    var maxZoom: Int
+        get() = sp.getInt("maxZoom", 30)
+        set(v) = sp.edit().putInt("maxZoom", v).apply()
+
+    /** Before reading, guide the user to frame the whole text (voice and big messages). */
+    var guidedCapture: Boolean
+        get() = sp.getBoolean("guidedCapture", true)
+        set(v) = sp.edit().putBoolean("guidedCapture", v).apply()
+
+    var voiceHints: Boolean
+        // Off by default: she uses the app in public and does not want it to be noticed.
+        get() = sp.getBoolean("voiceHints", false)
+        set(v) = sp.edit().putBoolean("voiceHints", v).apply()
+
+    /** Reader: "page", "line", "words" or "photo". */
+    var readerMode: String
+        get() = sp.getString("readerMode", "page") ?: "page"
+        set(v) = sp.edit().putString("readerMode", v).apply()
+
+    /** Words per minute for the moving reading modes. */
+    var readingWpm: Int
+        get() = sp.getInt("readingWpm", 90)
+        set(v) = sp.edit().putInt("readingWpm", v.coerceIn(20, 400)).apply()
+
+    var wordsAtOnce: Int
+        get() = sp.getInt("wordsAtOnce", 2)
+        set(v) = sp.edit().putInt("wordsAtOnce", v.coerceIn(1, 5)).apply()
+
+    /** In the moving modes, read aloud and follow the voice instead of a fixed speed. */
+    var speakWhileMoving: Boolean
+        get() = sp.getBoolean("speakWhileMoving", false)
+        set(v) = sp.edit().putBoolean("speakWhileMoving", v).apply()
+
     var maxBrightness: Boolean
         get() = sp.getBoolean("maxBrightness", false)
         set(v) = sp.edit().putBoolean("maxBrightness", v).apply()
@@ -82,7 +116,7 @@ class Prefs(context: Context) {
 
     var readerTextSp: Int
         get() = sp.getInt("readerTextSp", 40)
-        set(v) = sp.edit().putInt("readerTextSp", v.coerceIn(18, 120)).apply()
+        set(v) = sp.edit().putInt("readerTextSp", v.coerceIn(18, 260)).apply()
 
     var readerScheme: String
         get() = sp.getString("readerScheme", ColorModes.YELLOW_ON_BLACK) ?: ColorModes.YELLOW_ON_BLACK

@@ -29,6 +29,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.speech.tts.TextToSpeech
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -170,6 +173,13 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
 
         cameraExecutor = Executors.newSingleThreadExecutor()
         analyzer = FrameAnalyzer(this)
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val r = tts?.setLanguage(Locale.ITALIAN)
+                if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) tts?.setLanguage(Locale.getDefault())
+            }
+        }
+        tone = try { ToneGenerator(AudioManager.STREAM_MUSIC, 70) } catch (_: Exception) { null }
         sensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
 
         guard = ScreenGuard(listOf(controls), listOf(bottom, bigLabel), resources.displayMetrics.density)
@@ -215,6 +225,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         guard.stop()
         main.removeCallbacks(idleCheck)
         sensorManager?.unregisterListener(this)
+        if (guiding) { stopGuide(); zoom = guideZoom }
         prefs.zoom = zoom
     }
 
@@ -222,6 +233,8 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         super.onDestroy()
         (getSystemService(DISPLAY_SERVICE) as android.hardware.display.DisplayManager).unregisterDisplayListener(displayListener)
         cameraExecutor.shutdown()
+        tts?.shutdown()
+        tone?.release()
         analyzer.close()
     }
 
@@ -258,6 +271,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     private fun applySettings() {
         if (requestedOrientation != prefs.orientationFlag) requestedOrientation = prefs.orientationFlag
         guard.autoHideMs = prefs.autoHideSec * 1000L
+        updateZoomLimits()
         smartFocus.enabled = prefs.smartFocus
         analyzer.ocrEnabled = prefs.textDetect || prefs.smartFocus
         applyColors()
@@ -362,8 +376,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     private fun bindCamera() {
         val provider = cameraProvider ?: return
         if (!permissionGranted()) return
-        val viewPort = previewView.viewPort
-        if (viewPort == null || previewView.width == 0) {
+        if (previewView.width == 0) {
             previewView.post { bindCamera() }
             return
         }
@@ -403,13 +416,16 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
                     .setTargetRotation(rotation)
                     .build()
 
-                val group = UseCaseGroup.Builder().setViewPort(viewPort).addUseCase(preview).addUseCase(capture)
+                // No viewport: photos and text analysis use the whole sensor (more of the page),
+                // even if the screen shows a narrower slice of it.
+                val group = UseCaseGroup.Builder().addUseCase(preview).addUseCase(capture)
                 var analysis: ImageAnalysis? = null
                 if (withAnalysis) {
                     analysis = ImageAnalysis.Builder()
                         .setResolutionSelector(
                             ResolutionSelector.Builder()
-                                .setResolutionStrategy(ResolutionStrategy(android.util.Size(1280, 720),
+                                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+                                .setResolutionStrategy(ResolutionStrategy(android.util.Size(1600, 1200),
                                     ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER))
                                 .build()
                         )
@@ -441,7 +457,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         maxZoom = maxOf(minZoom, zs?.maxZoomRatio ?: 1f)
         // Beyond the camera limit keep enlarging the picture itself, so there is always
         // at least 12x (some phones and emulators have little or no camera zoom).
-        totalMaxZoom = maxOf(maxZoom * 2f, 12f)
+        updateZoomLimits()
         setZoom(zoom, announce = false)
 
         smartFocus.camera = cam
@@ -476,6 +492,13 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         zoomBar.progress = zoomToProgress(zoom)
         updatingBar = false
         if (announce) showLabel(zoomText(zoom), 1200)
+    }
+
+    /** Camera zoom first, then the picture itself is enlarged up to the limit chosen in settings. */
+    private fun updateZoomLimits() {
+        totalMaxZoom = maxOf(maxZoom, prefs.maxZoom.toFloat())
+        frozenView.maxRelativeZoom = prefs.maxZoom.toFloat()
+        if (camera != null) setZoom(zoom, announce = false)
     }
 
     private fun zoomText(z: Float) = String.format(Locale.ITALIAN, "%.1f ×", z)
@@ -516,6 +539,8 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         btnColors.setOnLongClickListener { tap(it); openMore(); true }
         btnFreeze.setOnClickListener { tap(it); if (frozen) unfreeze() else freeze() }
         btnRead.setOnClickListener { tap(it); readText() }
+        // Long press: take the photo at once, without the framing guide.
+        btnRead.setOnLongClickListener { tap(it); readText(guided = false); true }
         findViewById<View>(R.id.btnMore).setOnClickListener { tap(it); openMore() }
         textChip.setOnClickListener { tap(it); textChip.visibility = View.GONE; readText() }
         frozenView.onSingleTap = { guard.show() }
@@ -551,6 +576,10 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
                 MotionEvent.ACTION_MOVE -> if (abs(e.x - downX) + abs(e.y - downY) > 24 * resources.displayMetrics.density) moved = true
             }
             if (ignore) return@setOnTouchListener true
+            if (guiding) {
+                if (e.actionMasked == MotionEvent.ACTION_UP) cancelGuide()
+                return@setOnTouchListener true
+            }
             scale.onTouchEvent(e)
             if (e.actionMasked == MotionEvent.ACTION_UP && !moved && e.eventTime - e.downTime < 500) {
                 guard.show()
@@ -565,6 +594,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
             override fun handleOnBackPressed() {
                 when {
                     morePanel.visibility == View.VISIBLE -> closeMore()
+                    guiding -> cancelGuide()
                     else -> {
                         // Never leave on a stray back gesture: exiting is only from the menu.
                         guard.show()
@@ -650,16 +680,137 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
 
     // ---------------------------------------------------------------- reading
 
-    private fun readText() {
+    private fun readText(guided: Boolean = prefs.guidedCapture) {
         if (frozen) {
             val f = frozenFile
             if (f != null) openReader(f) else { readWhenFrozenReady = true; showLabel("Un attimo…", 1500) }
             return
         }
+        if (guiding) { captureForReading(); return } // second tap: take it now
         if (busyCapturing) return
-        showLabel("Fotografo il testo…\nTieni fermo", 3000)
+        if (guided && imageAnalysis != null) startGuide() else {
+            showLabel("Fotografo il testo…\nTieni fermo", 3000)
+            captureForReading()
+        }
+    }
+
+    // ---------------------------------------------------------------- guided capture
+    //
+    // Before photographing text for the reader, zoom out to the widest view and guide the user
+    // (big messages and voice) until all the text is inside the picture, then shoot by itself
+    // when the phone is still. Same idea as the document modes of KNFB Reader, Seeing AI and
+    // Lookout: low-vision users cannot easily judge the right distance on their own.
+
+    private var guiding = false
+    private var guideStart = 0L
+    private var guideZoom = 2f
+    private var guideInsideSince = 0L
+    private var lastHint = ""
+    private var lastHintAt = 0L
+    private var tts: TextToSpeech? = null
+    private var tone: ToneGenerator? = null
+
+    private fun startGuide() {
+        guiding = true
+        guideStart = SystemClock.elapsedRealtime()
+        guideInsideSince = 0L
+        guideZoom = zoom
+        setZoom(minZoom, announce = false)
+        analyzer.guideMode = true
+        textChip.visibility = View.GONE
+        guard.hide()
+        lastHint = ""
+        hint("Inquadra tutto il testo\ne tieni fermo il telefono", 3500)
+        main.removeCallbacks(guideTick)
+        main.postDelayed(guideTick, 500)
+    }
+
+    private fun stopGuide() {
+        guiding = false
+        analyzer.guideMode = false
+        main.removeCallbacks(guideTick)
+    }
+
+    private fun cancelGuide() {
+        stopGuide()
+        setZoom(guideZoom, announce = false)
+        tts?.stop()
+        showLabel("Lettura annullata", 1500)
+    }
+
+    private val guideTick = object : Runnable {
+        override fun run() {
+            if (!guiding) return
+            if (SystemClock.elapsedRealtime() - guideStart > 15_000) {
+                hint("Scatto", 1500)
+                captureForReading()
+                return
+            }
+            main.postDelayed(this, 500)
+        }
+    }
+
+    override fun onGuide(info: FrameAnalyzer.GuideInfo) {
+        if (!guiding) return
+        val now = SystemClock.elapsedRealtime()
+        val sides = listOf(info.touchesLeft, info.touchesTop, info.touchesRight, info.touchesBottom).count { it }
+        val message = when {
+            !info.found && now - guideStart < 3000 -> "Cerco il testo…"
+            !info.found && info.meanLuma < 55 -> "C'è poca luce:\naccendi la luce"
+            !info.found -> "Non vedo il testo:\navvicina il telefono al foglio"
+            sides >= 2 -> "Allontana il telefono\ndal foglio"
+            info.touchesLeft -> "Sposta il telefono\na sinistra"
+            info.touchesRight -> "Sposta il telefono\na destra"
+            info.touchesTop -> "Sposta il telefono\nin su"
+            info.touchesBottom -> "Sposta il telefono\nin giù"
+            else -> null
+        }
+        if (message != null) {
+            guideInsideSince = 0L
+            hint(message, 2500)
+            return
+        }
+        // All the text is inside the picture: wait until the phone is still, then shoot.
+        if (guideInsideSince == 0L) {
+            guideInsideSince = now
+            hint("Fermo così…", 2000)
+            // Silent cue: a short vibration when all the text is in the picture.
+            buzz(60)
+        }
+        if (!isDeviceMoving() && now - guideInsideSince > 700) captureForReading()
+    }
+
+    /** Big message, also spoken when it changes (or every few seconds if it stays the same). */
+    private fun hint(text: String, ms: Long) {
+        showLabel(text, ms)
+        val now = SystemClock.elapsedRealtime()
+        if (!prefs.voiceHints) return
+        if (text == lastHint && now - lastHintAt < 4500) return
+        if (text != lastHint && tts?.isSpeaking == true && now - lastHintAt < 1500) return
+        lastHint = text
+        lastHintAt = now
+        tts?.speak(text.replace("\n", " ").replace("…", ""), TextToSpeech.QUEUE_FLUSH, null, "hint")
+    }
+
+    /** Vibration that works even when the system touch feedback is off (the silent cues). */
+    private fun buzz(ms: Long) {
+        try {
+            val v = if (Build.VERSION.SDK_INT >= 31) (getSystemService(VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager).defaultVibrator
+            else @Suppress("DEPRECATION") (getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator)
+            v.vibrate(android.os.VibrationEffect.createOneShot(ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+        } catch (_: Exception) {}
+    }
+
+    private fun captureForReading() {
+        val wasGuiding = guiding
+        stopGuide()
+        if (busyCapturing) return
+        if (prefs.voiceHints) try { tone?.startTone(ToneGenerator.TONE_PROP_ACK, 150) } catch (_: Exception) {}
+        buzz(180)
+        showLabel("Leggo il testo…", 3000)
         smartFocus.focusThen {
             takePicture({ previewView.bitmap }) { file ->
+                if (wasGuiding) setZoom(guideZoom, announce = false)
                 if (file != null) openReader(file) else showLabel("Foto non riuscita, riprova", 2500)
             }
         }
@@ -755,6 +906,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
 
     override fun onTextScan(found: Boolean, bufferX: Float, bufferY: Float) {
         if (frozen) return
+        if (guiding) { smartFocus.onText(found, bufferX, bufferY); return }
         smartFocus.onText(found, bufferX, bufferY)
         if (found) { textStreak++; noTextStreak = 0 } else { noTextStreak++; textStreak = 0 }
         btnRead.isActivated = textStreak >= 2

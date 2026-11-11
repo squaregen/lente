@@ -13,11 +13,13 @@ Per installarla sul telefono: apri il link, scarica il file, toccalo e consenti
 
 | Funzione | Come si usa |
 |---|---|
-| Zoom | Pizzica lo schermo, usa la barra con **Più/Meno** o i **tasti del volume** |
+| Zoom | Pizzica lo schermo, usa **Più/Meno** o i **tasti del volume**. Fino a 30 volte (impostabile fino a 120): oltre lo zoom della fotocamera l'immagine viene ingrandita ancora |
 | Luce | **Luce** accende la torcia del telefono (lo stato viene ricordato) |
 | Colori ad alto contrasto | **Colori** passa tra le modalità; tieni premuto per contrasto e luminosità |
 | Immagine ferma | **Ferma** blocca l'immagine: poi la ingrandisci e la sposti con il dito (si scambia da sola con una foto ad alta risoluzione, così resta nitida) |
-| Lettura | **Leggi** fotografa il testo e lo mostra a tutto schermo, grande, a capo automatico; **Ascolta** lo legge ad alta voce in italiano |
+| Lettura guidata | **Leggi** allarga l'inquadratura e guida a inquadrare tutto il foglio ("Allontana il telefono", "Sposta a sinistra"...), poi scatta da solo quando il telefono è fermo. Tieni premuto **Leggi** per scattare subito |
+| Modi di lettura | Nel lettore, **Modo** passa tra **Pagina** (testo grande a capo automatico), **Riga** (una riga enorme che scorre: gli occhi stanno fermi), **Parole** (poche parole alla volta, grandi quanto lo schermo) e **Foto** (la foto originale ingrandita che avanza da sola lungo la riga e poi torna a capo) |
+| Voce | Spenta di default, per essere discreti in pubblico: **Ascolta** legge il testo solo se lo tocchi; i suggerimenti a voce si accendono nelle impostazioni. La guida usa messaggi grandi e vibrazioni |
 | Proposta automatica | Quando la fotocamera vede un testo compare "Testo trovato: tocca qui per leggerlo grande" |
 | Guida di lettura | Una banda orizzontale lascia visibile solo la riga che stai leggendo |
 | Leggere una foto | Da Galleria, WhatsApp o altre app: **Condividi → Leggi con Lente** |
@@ -39,6 +41,22 @@ Oltre all'autofocus continuo del telefono, l'app:
   (è la causa più comune di immagine sfocata con le lenti digitali);
 - usa la **stabilizzazione dell'anteprima** quando il telefono la supporta, utile a zoom alti;
 - permette di **bloccare il fuoco** (menu Altro), ad esempio per scrivere sotto la fotocamera.
+
+## Perché la lettura guidata
+
+Chi è ipovedente fatica a capire a che distanza tenere il telefono per prendere tutto il testo.
+Le app di riferimento (KNFB Reader, Seeing AI, Lookout) risolvono così: inquadratura larga,
+indicazioni su come spostare il telefono, scatto automatico quando il testo è tutto dentro.
+Il riconoscimento poi lavora su una foto ad alta risoluzione dell'intero sensore, e la lettura
+avviene sullo schermo nel modo preferito, senza dover muovere il telefono lungo le righe.
+
+Le visualizzazioni a riga e a parole sono quelle dei videoingranditori da tavolo con sintesi
+vocale; la foto guidata riproduce il movimento che si fa a mano con una lente (qualche parola
+alla volta da sinistra a destra, poi a capo), ma in automatico e con il resto della pagina
+oscurato.
+
+Il riconoscimento è Google ML Kit, sul telefono: veloce (una frazione di secondo), preciso
+sul testo stampato, gratuito, funziona senza internet e le foto non escono dal telefono.
 
 ## Non si esce per sbaglio
 
