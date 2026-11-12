@@ -32,6 +32,7 @@ import android.provider.Settings
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
+import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -84,16 +85,11 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     private lateinit var previewView: PreviewView
     private lateinit var frozenView: ZoomImageView
     private lateinit var bigLabel: TextView
-    private lateinit var textChip: TextView
-    private lateinit var controls: View
-    private lateinit var bottom: View
-    private lateinit var zoomBar: SeekBar
-    private lateinit var btnLight: TextView
-    private lateinit var btnColors: TextView
-    private lateinit var btnFreeze: TextView
-    private lateinit var btnRead: TextView
-    private lateinit var morePanel: View
-    private lateinit var moreContent: LinearLayout
+    private lateinit var btnZoomIn: View
+    private lateinit var btnZoomOut: View
+    private lateinit var btnMenu: View
+    private lateinit var menuPanel: View
+    private lateinit var menuContent: LinearLayout
     private lateinit var maskTop: View
     private lateinit var maskBottom: View
     private lateinit var guard: ScreenGuard
@@ -112,18 +108,13 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     private var totalMaxZoom = 1f   // camera limit plus extra software zoom
     private var cameraZoom = 1f
     private var zoom = 2f
-    private var updatingBar = false
+    private var hasFlash = false
 
     private var frozen = false
     private var frozenFile: File? = null
     private var freezeToken = 0
     private var readWhenFrozenReady = false
     private var busyCapturing = false
-
-    // Text proposal
-    private var textStreak = 0
-    private var noTextStreak = 0
-    private var proposedForThisText = false
 
     // Inactivity / screen saver
     private var lastActivity = SystemClock.elapsedRealtime()
@@ -143,6 +134,10 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
 
     // ---------------------------------------------------------------- lifecycle
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(Ui.standardScale(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
@@ -154,16 +149,11 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         previewView = findViewById(R.id.preview)
         frozenView = findViewById(R.id.frozen)
         bigLabel = findViewById(R.id.bigLabel)
-        textChip = findViewById(R.id.textChip)
-        controls = findViewById(R.id.controls)
-        bottom = findViewById(R.id.bottom)
-        zoomBar = findViewById(R.id.zoomBar)
-        btnLight = findViewById(R.id.btnLight)
-        btnColors = findViewById(R.id.btnColors)
-        btnFreeze = findViewById(R.id.btnFreeze)
-        btnRead = findViewById(R.id.btnRead)
-        morePanel = findViewById(R.id.morePanel)
-        moreContent = findViewById(R.id.moreContent)
+        btnZoomIn = findViewById(R.id.btnZoomIn)
+        btnZoomOut = findViewById(R.id.btnZoomOut)
+        btnMenu = findViewById(R.id.btnMenu)
+        menuPanel = findViewById(R.id.menuPanel)
+        menuContent = findViewById(R.id.menuContent)
         maskTop = findViewById(R.id.maskTop)
         maskBottom = findViewById(R.id.maskBottom)
 
@@ -173,16 +163,15 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
 
         cameraExecutor = Executors.newSingleThreadExecutor()
         analyzer = FrameAnalyzer(this)
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val r = tts?.setLanguage(Locale.ITALIAN)
-                if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) tts?.setLanguage(Locale.getDefault())
-            }
-        }
-        tone = try { ToneGenerator(AudioManager.STREAM_MUSIC, 70) } catch (_: Exception) { null }
         sensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
 
-        guard = ScreenGuard(listOf(controls), listOf(bottom, bigLabel), resources.displayMetrics.density)
+        // The corner buttons never disappear (she knows where they are): after a few seconds, or
+        // as soon as the picture is touched, they fade to faint but stay tappable. They also drift
+        // by a few pixels now and then, so they cannot burn into the screen.
+        val corner = listOf(btnZoomIn, btnZoomOut, btnMenu)
+        guard = ScreenGuard(corner, corner, resources.displayMetrics.density)
+        guard.shownAlpha = 0.75f
+        guard.hiddenAlpha = 0.2f
 
         zoom = prefs.zoom
         setupControls()
@@ -225,7 +214,6 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         guard.stop()
         main.removeCallbacks(idleCheck)
         sensorManager?.unregisterListener(this)
-        if (guiding) { stopGuide(); zoom = guideZoom }
         prefs.zoom = zoom
     }
 
@@ -233,8 +221,6 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         super.onDestroy()
         (getSystemService(DISPLAY_SERVICE) as android.hardware.display.DisplayManager).unregisterDisplayListener(displayListener)
         cameraExecutor.shutdown()
-        tts?.shutdown()
-        tone?.release()
         analyzer.close()
     }
 
@@ -273,7 +259,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         guard.autoHideMs = prefs.autoHideSec * 1000L
         updateZoomLimits()
         smartFocus.enabled = prefs.smartFocus
-        analyzer.ocrEnabled = prefs.textDetect || prefs.smartFocus
+        analyzer.ocrEnabled = prefs.smartFocus
         applyColors()
         applyBrightness()
         applyMask()
@@ -467,10 +453,8 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
                 .getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) ?: 0f
         } catch (_: Exception) { 0f }
 
-        val hasFlash = cam.cameraInfo.hasFlashUnit()
-        btnLight.visibility = if (hasFlash) View.VISIBLE else View.GONE
+        hasFlash = cam.cameraInfo.hasFlashUnit()
         if (hasFlash && prefs.torch) cam.cameraControl.enableTorch(true)
-        updateLightButton()
     }
 
     private val captureCallback = object : CameraCaptureSession.CaptureCallback() {
@@ -488,10 +472,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         val extra = zoom / cameraZoom
         previewView.scaleX = extra
         previewView.scaleY = extra
-        updatingBar = true
-        zoomBar.progress = zoomToProgress(zoom)
-        updatingBar = false
-        if (announce) showLabel(zoomText(zoom), 1200)
+        if (announce) previewView.contentDescription = "Zoom ${String.format(Locale.ITALIAN, "%.1f", zoom)}"
     }
 
     /** Camera zoom first, then the picture itself is enlarged up to the limit chosen in settings. */
@@ -501,50 +482,25 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         if (camera != null) setZoom(zoom, announce = false)
     }
 
-    private fun zoomText(z: Float) = String.format(Locale.ITALIAN, "%.1f ×", z)
-
-    private fun zoomToProgress(z: Float): Int {
-        if (totalMaxZoom <= minZoom) return 0
-        return ((ln(z / minZoom) / ln(totalMaxZoom / minZoom)) * 1000).toInt().coerceIn(0, 1000)
-    }
-
-    private fun progressToZoom(p: Int): Float {
-        if (totalMaxZoom <= minZoom) return minZoom
-        return (minZoom * exp(ln(totalMaxZoom / minZoom) * p / 1000f))
-    }
-
     private fun zoomStep(factor: Float) {
-        if (frozen) {
-            frozenView.zoomBy(factor)
-            showLabel(zoomText(frozenView.relativeZoom() * cameraZoom), 1000)
-        } else {
-            setZoom(zoom * factor)
-        }
+        if (frozen) frozenView.zoomBy(factor) else setZoom(zoom * factor)
     }
 
     // ---------------------------------------------------------------- controls
 
     private fun setupControls() {
-        findViewById<View>(R.id.btnZoomIn).setOnClickListener { tap(it); zoomStep(1.25f) }
-        findViewById<View>(R.id.btnZoomOut).setOnClickListener { tap(it); zoomStep(0.8f) }
-        zoomBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
-                if (fromUser && !updatingBar && !frozen) setZoom(progressToZoom(p))
-            }
-            override fun onStartTrackingTouch(sb: SeekBar) {}
-            override fun onStopTrackingTouch(sb: SeekBar) {}
-        })
-        btnLight.setOnClickListener { tap(it); toggleTorch() }
-        btnColors.setOnClickListener { tap(it); nextColorMode() }
-        btnColors.setOnLongClickListener { tap(it); openMore(); true }
-        btnFreeze.setOnClickListener { tap(it); if (frozen) unfreeze() else freeze() }
-        btnRead.setOnClickListener { tap(it); readText() }
-        // Long press: take the photo at once, without the framing guide.
-        btnRead.setOnLongClickListener { tap(it); readText(guided = false); true }
-        findViewById<View>(R.id.btnMore).setOnClickListener { tap(it); openMore() }
-        textChip.setOnClickListener { tap(it); textChip.visibility = View.GONE; readText() }
-        frozenView.onSingleTap = { guard.show() }
-        frozenView.onZoomChanged = { }
+        btnZoomIn.setOnClickListener { tap(it); guard.show(); zoomStep(1.25f) }
+        btnZoomOut.setOnClickListener { tap(it); guard.show(); zoomStep(0.8f) }
+        btnMenu.setOnClickListener { tap(it); if (menuPanel.visibility == View.VISIBLE) closeMenu() else openMenu() }
+        // Frozen picture: a tap only closes the menu / fades the buttons, a double tap reads the text.
+        frozenView.onSingleTap = { touchedPicture() }
+        frozenView.onDoubleTapAction = { readText() }
+    }
+
+    /** Any touch on the picture: close the menu and fade the corner buttons. */
+    private fun touchedPicture() {
+        if (menuPanel.visibility == View.VISIBLE) closeMenu()
+        guard.hide()
     }
 
     private fun tap(v: View) {
@@ -555,36 +511,37 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     private fun setupGestures() {
         val scale = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(d: ScaleGestureDetector): Boolean {
-                setZoom(zoom * d.scaleFactor)
+                setZoom(zoom * d.scaleFactor, announce = false)
+                return true
+            }
+        })
+        // Tap: focus there. Double tap: read the text.
+        val taps = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent) = true
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                smartFocus.focusAtPoint(previewView.meteringPointFactory.createPoint(e.x, e.y))
+                return true
+            }
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                readText()
                 return true
             }
         })
         val edge = 28 * resources.displayMetrics.density
         var ignore = false
-        var moved = false
-        var downX = 0f
-        var downY = 0f
-        previewView.setOnTouchListener { v, e ->
-            when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    // A finger landing on the very edge is usually the hand gripping the phone.
-                    ignore = e.rawX < edge || e.rawX > root.width - edge
-                    moved = false
-                    downX = e.x; downY = e.y
+        previewView.setOnTouchListener { _, e ->
+            if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+                // A finger landing on the very edge is usually the hand gripping the phone.
+                ignore = e.rawX < edge || e.rawX > root.width - edge
+                if (!ignore) {
+                    // Touching the picture closes the menu (and does nothing else this time).
+                    if (menuPanel.visibility == View.VISIBLE) { closeMenu(); ignore = true }
+                    guard.hide()
                 }
-                MotionEvent.ACTION_POINTER_DOWN -> moved = true
-                MotionEvent.ACTION_MOVE -> if (abs(e.x - downX) + abs(e.y - downY) > 24 * resources.displayMetrics.density) moved = true
             }
             if (ignore) return@setOnTouchListener true
-            if (guiding) {
-                if (e.actionMasked == MotionEvent.ACTION_UP) cancelGuide()
-                return@setOnTouchListener true
-            }
             scale.onTouchEvent(e)
-            if (e.actionMasked == MotionEvent.ACTION_UP && !moved && e.eventTime - e.downTime < 500) {
-                guard.show()
-                smartFocus.focusAtPoint(previewView.meteringPointFactory.createPoint(e.x, e.y))
-            }
+            if (e.pointerCount == 1 && !scale.isInProgress) taps.onTouchEvent(e)
             true
         }
     }
@@ -592,42 +549,18 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     private fun setupBack() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                when {
-                    morePanel.visibility == View.VISIBLE -> closeMore()
-                    guiding -> cancelGuide()
-                    else -> {
-                        // Never leave on a stray back gesture: exiting is only from the menu.
-                        guard.show()
-                        showLabel("Per uscire:\nAltro → Esci", 2500)
-                    }
-                }
+                // Never leave on a stray back gesture: it only closes the menu.
+                // Exiting is from the menu (Esci dall'app).
+                if (menuPanel.visibility == View.VISIBLE) closeMenu()
             }
         })
     }
 
-    private fun toggleTorch() {
-        val cam = camera ?: return
-        val on = cam.cameraInfo.torchState.value != androidx.camera.core.TorchState.ON
-        cam.cameraControl.enableTorch(on)
+    private fun torchOn() = camera?.cameraInfo?.torchState?.value == androidx.camera.core.TorchState.ON
+
+    private fun setTorch(on: Boolean) {
+        camera?.cameraControl?.enableTorch(on)
         prefs.torch = on
-        showLabel(if (on) "Luce accesa" else "Luce spenta", 1200)
-        main.postDelayed({ updateLightButton() }, 300)
-        btnLight.isActivated = on
-    }
-
-    private fun updateLightButton() {
-        val on = camera?.cameraInfo?.torchState?.value == androidx.camera.core.TorchState.ON
-        btnLight.isActivated = on
-        btnLight.contentDescription = if (on) "Luce accesa. Tocca per spegnere" else "Luce spenta. Tocca per accendere"
-    }
-
-    private fun nextColorMode() {
-        val cycle = ColorModes.ALL.filter { prefs.enabledModes.contains(it.id) }.ifEmpty { listOf(ColorModes.ALL[0]) }
-        val i = cycle.indexOfFirst { it.id == prefs.colorMode }
-        val next = cycle[(i + 1) % cycle.size]
-        prefs.colorMode = next.id
-        applyColors()
-        showLabel(next.label, 1500)
     }
 
     // ---------------------------------------------------------------- freeze
@@ -643,12 +576,6 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         if (extra > 1.01f) frozenView.post { frozenView.zoomBy(extra) }
         frozenView.visibility = View.VISIBLE
         analyzer.ocrEnabled = false
-        btnFreeze.text = "Riprendi"
-        btnFreeze.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_play, 0, 0)
-        btnFreeze.isActivated = true
-        zoomBar.isEnabled = false
-        textChip.visibility = View.GONE
-        showLabel("Immagine ferma", 1200)
         // Take a full-resolution photo of the same view and swap it in, so zooming stays sharp.
         val token = freezeToken
         takePicture({ bmp }) { file ->
@@ -670,150 +597,35 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
         readWhenFrozenReady = false
         frozenView.visibility = View.GONE
         frozenView.clear()
-        analyzer.ocrEnabled = prefs.textDetect || prefs.smartFocus
-        btnFreeze.text = "Ferma"
-        btnFreeze.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_pause, 0, 0)
-        btnFreeze.isActivated = false
-        zoomBar.isEnabled = true
-        showLabel("Immagine dal vivo", 1000)
+        analyzer.ocrEnabled = prefs.smartFocus
     }
 
     // ---------------------------------------------------------------- reading
 
-    private fun readText(guided: Boolean = prefs.guidedCapture) {
+    private fun readText() {
+        if (menuPanel.visibility == View.VISIBLE) closeMenu()
         if (frozen) {
             val f = frozenFile
-            if (f != null) openReader(f) else { readWhenFrozenReady = true; showLabel("Un attimo…", 1500) }
+            buzz(120)
+            if (f != null) openReader(f) else readWhenFrozenReady = true
             return
         }
-        if (guiding) { captureForReading(); return } // second tap: take it now
         if (busyCapturing) return
-        if (guided && imageAnalysis != null) startGuide() else {
-            showLabel("Fotografo il testo…\nTieni fermo", 3000)
-            captureForReading()
-        }
-    }
-
-    // ---------------------------------------------------------------- guided capture
-    //
-    // Before photographing text for the reader, zoom out to the widest view and guide the user
-    // (big messages and voice) until all the text is inside the picture, then shoot by itself
-    // when the phone is still. Same idea as the document modes of KNFB Reader, Seeing AI and
-    // Lookout: low-vision users cannot easily judge the right distance on their own.
-
-    private var guiding = false
-    private var guideStart = 0L
-    private var guideZoom = 2f
-    private var guideInsideSince = 0L
-    private var lastHint = ""
-    private var lastHintAt = 0L
-    private var tts: TextToSpeech? = null
-    private var tone: ToneGenerator? = null
-
-    private fun startGuide() {
-        guiding = true
-        guideStart = SystemClock.elapsedRealtime()
-        guideInsideSince = 0L
-        guideZoom = zoom
-        setZoom(minZoom, announce = false)
-        analyzer.guideMode = true
-        textChip.visibility = View.GONE
-        guard.hide()
-        lastHint = ""
-        hint("Inquadra tutto il testo\ne tieni fermo il telefono", 3500)
-        main.removeCallbacks(guideTick)
-        main.postDelayed(guideTick, 500)
-    }
-
-    private fun stopGuide() {
-        guiding = false
-        analyzer.guideMode = false
-        main.removeCallbacks(guideTick)
-    }
-
-    private fun cancelGuide() {
-        stopGuide()
-        setZoom(guideZoom, announce = false)
-        tts?.stop()
-        showLabel("Lettura annullata", 1500)
-    }
-
-    private val guideTick = object : Runnable {
-        override fun run() {
-            if (!guiding) return
-            if (SystemClock.elapsedRealtime() - guideStart > 15_000) {
-                hint("Scatto", 1500)
-                captureForReading()
-                return
+        buzz(120)
+        smartFocus.focusThen {
+            takePicture({ previewView.bitmap }) { file ->
+                if (file != null) openReader(file) else showLabel("Foto non riuscita, riprova", 2500)
             }
-            main.postDelayed(this, 500)
         }
     }
 
-    override fun onGuide(info: FrameAnalyzer.GuideInfo) {
-        if (!guiding) return
-        val now = SystemClock.elapsedRealtime()
-        val sides = listOf(info.touchesLeft, info.touchesTop, info.touchesRight, info.touchesBottom).count { it }
-        val message = when {
-            !info.found && now - guideStart < 3000 -> "Cerco il testo…"
-            !info.found && info.meanLuma < 55 -> "C'è poca luce:\naccendi la luce"
-            !info.found -> "Non vedo il testo:\navvicina il telefono al foglio"
-            sides >= 2 -> "Allontana il telefono\ndal foglio"
-            info.touchesLeft -> "Sposta il telefono\na sinistra"
-            info.touchesRight -> "Sposta il telefono\na destra"
-            info.touchesTop -> "Sposta il telefono\nin su"
-            info.touchesBottom -> "Sposta il telefono\nin giù"
-            else -> null
-        }
-        if (message != null) {
-            guideInsideSince = 0L
-            hint(message, 2500)
-            return
-        }
-        // All the text is inside the picture: wait until the phone is still, then shoot.
-        if (guideInsideSince == 0L) {
-            guideInsideSince = now
-            hint("Fermo così…", 2000)
-            // Silent cue: a short vibration when all the text is in the picture.
-            buzz(60)
-        }
-        if (!isDeviceMoving() && now - guideInsideSince > 700) captureForReading()
-    }
-
-    /** Big message, also spoken when it changes (or every few seconds if it stays the same). */
-    private fun hint(text: String, ms: Long) {
-        showLabel(text, ms)
-        val now = SystemClock.elapsedRealtime()
-        if (!prefs.voiceHints) return
-        if (text == lastHint && now - lastHintAt < 4500) return
-        if (text != lastHint && tts?.isSpeaking == true && now - lastHintAt < 1500) return
-        lastHint = text
-        lastHintAt = now
-        tts?.speak(text.replace("\n", " ").replace("…", ""), TextToSpeech.QUEUE_FLUSH, null, "hint")
-    }
-
-    /** Vibration that works even when the system touch feedback is off (the silent cues). */
+    /** Vibration that works even when the system touch feedback is off. */
     private fun buzz(ms: Long) {
         try {
             val v = if (Build.VERSION.SDK_INT >= 31) (getSystemService(VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager).defaultVibrator
             else @Suppress("DEPRECATION") (getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator)
             v.vibrate(android.os.VibrationEffect.createOneShot(ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (_: Exception) {}
-    }
-
-    private fun captureForReading() {
-        val wasGuiding = guiding
-        stopGuide()
-        if (busyCapturing) return
-        if (prefs.voiceHints) try { tone?.startTone(ToneGenerator.TONE_PROP_ACK, 150) } catch (_: Exception) {}
-        buzz(180)
-        showLabel("Leggo il testo…", 3000)
-        smartFocus.focusThen {
-            takePicture({ previewView.bitmap }) { file ->
-                if (wasGuiding) setZoom(guideZoom, announce = false)
-                if (file != null) openReader(file) else showLabel("Foto non riuscita, riprova", 2500)
-            }
-        }
     }
 
     private fun openReader(file: File) {
@@ -905,35 +717,16 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     }
 
     override fun onTextScan(found: Boolean, bufferX: Float, bufferY: Float) {
-        if (frozen) return
-        if (guiding) { smartFocus.onText(found, bufferX, bufferY); return }
-        smartFocus.onText(found, bufferX, bufferY)
-        if (found) { textStreak++; noTextStreak = 0 } else { noTextStreak++; textStreak = 0 }
-        btnRead.isActivated = textStreak >= 2
-        if (noTextStreak >= 3) {
-            proposedForThisText = false
-            textChip.visibility = View.GONE
-        }
-        if (textStreak >= 2 && !proposedForThisText && prefs.textDetect && morePanel.visibility != View.VISIBLE && !dimmed) {
-            proposedForThisText = true
-            textChip.visibility = View.VISIBLE
-            textChip.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-            textChip.announceForAccessibility("Testo trovato. Tocca per leggerlo grande.")
-            main.removeCallbacks(hideChip)
-            main.postDelayed(hideChip, 7000)
-        }
+        // Text position is only used to aim the focus; nothing is shown on screen.
+        if (!frozen) smartFocus.onText(found, bufferX, bufferY)
     }
-
-    private val hideChip = Runnable { textChip.visibility = View.GONE }
 
     // ---------------------------------------------------------------- smart focus callbacks
 
     override fun isDeviceMoving(): Boolean = SystemClock.elapsedRealtime() - lastMotion < 400
 
     override fun onTooClose() {
-        runOnUiThread {
-            if (!frozen && !dimmed) showLabel("Troppo vicino:\nallontana il telefono\ne usa lo zoom", 4000)
-        }
+        // Clean screen: no message over the picture.
     }
 
     // ---------------------------------------------------------------- motion / idle
@@ -983,7 +776,6 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     private fun dim() {
         dimmed = true
         guard.hide()
-        textChip.visibility = View.GONE
         applyBrightness()
     }
 
@@ -1032,27 +824,41 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
 
     // ---------------------------------------------------------------- "Altro" menu
 
-    private fun openMore() {
-        buildMoreMenu()
-        morePanel.visibility = View.VISIBLE
-        morePanel.scrollTo(0, 0)
-        guard.hold()
-        textChip.visibility = View.GONE
-    }
-
-    private fun closeMore() {
-        morePanel.visibility = View.GONE
+    private fun openMenu() {
+        buildMenu()
+        // Leave part of the picture uncovered: touching it closes the menu.
+        val landscape = root.width > root.height
+        menuPanel.layoutParams = menuPanel.layoutParams.apply {
+            if (landscape) width = (root.width * 0.55f).toInt() else height = (root.height * 0.72f).toInt()
+        }
+        menuPanel.visibility = View.VISIBLE
+        menuPanel.scrollTo(0, 0)
         guard.show()
+        guard.hold()
     }
 
-    private fun buildMoreMenu() {
-        val c = moreContent
+    private fun closeMenu() {
+        menuPanel.visibility = View.GONE
+        guard.poke()
+    }
+
+    private fun buildMenu() {
+        val c = menuContent
         c.removeAllViews()
-        c.addView(Ui.button(this, "Chiudi il menu", R.drawable.ic_close) { closeMore() })
+        c.addView(Ui.button(this, "Chiudi il menu", R.drawable.ic_close) { closeMenu() })
+
+        c.addView(Ui.button(this, if (frozen) "Riprendi l'immagine dal vivo" else "Ferma l'immagine",
+            if (frozen) R.drawable.ic_play else R.drawable.ic_pause) {
+            if (frozen) unfreeze() else freeze()
+            closeMenu()
+        })
+        c.addView(Ui.button(this, "Leggi il testo (doppio tocco)", R.drawable.ic_text) { readText() })
+        if (hasFlash) c.addView(Ui.toggle(this, "Luce", { prefs.torch }) { setTorch(it) })
 
         c.addView(Ui.header(this, "Colori"))
         c.addView(Ui.button(this, "Colori: ${ColorModes.byId(prefs.colorMode).label}", R.drawable.ic_contrast) { v ->
-            val all = ColorModes.ALL
+            // The modes chosen in the settings (plus the current one).
+            val all = ColorModes.ALL.filter { prefs.enabledModes.contains(it.id) || it.id == prefs.colorMode }
             val i = all.indexOfFirst { it.id == prefs.colorMode }
             val next = all[(i + 1) % all.size]
             prefs.colorMode = next.id
@@ -1067,22 +873,18 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
             { prefs.brightness = prefs.brightness - 1; applyColors() },
             { prefs.brightness = prefs.brightness + 1; applyColors() }))
         c.addView(Ui.button(this, "Ripristina contrasto e luminosità") {
-            prefs.contrast = 5; prefs.brightness = 0; applyColors(); buildMoreMenu()
+            prefs.contrast = 5; prefs.brightness = 0; applyColors(); buildMenu()
         })
 
         c.addView(Ui.header(this, "Lettura e messa a fuoco"))
         c.addView(Ui.toggle(this, "Guida di lettura (banda)", { prefs.readingMask }) { prefs.readingMask = it; applyMask() })
         c.addView(Ui.toggle(this, "Blocca la messa a fuoco", { smartFocus.locked }) { smartFocus.setLocked(it) })
 
-        c.addView(Ui.header(this, "Protezione"))
+        c.addView(Ui.header(this, "Altro"))
         c.addView(Ui.toggle(this, "Blocca dentro l'app", { isPinned() }) { want ->
             setPinned(want)
-            if (want) closeMore()
+            if (want) closeMenu()
         })
-        c.addView(Ui.note(this, "Con il blocco attivo i gesti Home e Indietro non fanno uscire dall'app. " +
-            "Per uscire usa il pulsante Esci qui sotto."))
-
-        c.addView(Ui.header(this, "Altro"))
         c.addView(Ui.button(this, "Impostazioni", R.drawable.ic_settings) {
             startActivity(Intent(this, SettingsActivity::class.java))
         })
@@ -1096,7 +898,7 @@ class MainActivity : ComponentActivity(), FrameAnalyzer.Listener, SmartFocus.Cal
     // ---------------------------------------------------------------- hardware keys
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (prefs.volumeZoom && morePanel.visibility != View.VISIBLE) {
+        if (prefs.volumeZoom && menuPanel.visibility != View.VISIBLE) {
             when (keyCode) {
                 KeyEvent.KEYCODE_VOLUME_UP -> { markActive(); zoomStep(1.15f); return true }
                 KeyEvent.KEYCODE_VOLUME_DOWN -> { markActive(); zoomStep(1 / 1.15f); return true }

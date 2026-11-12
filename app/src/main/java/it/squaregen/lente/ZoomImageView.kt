@@ -14,6 +14,8 @@ import android.widget.ImageView
 class ZoomImageView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : ImageView(context, attrs) {
 
     var onSingleTap: (() -> Unit)? = null
+    /** If set, a double tap does this instead of zooming. */
+    var onDoubleTapAction: (() -> Unit)? = null
     var onZoomChanged: ((Float) -> Unit)? = null
     /** Called when the user pinches or drags (not when the app moves the picture). */
     var onUserGesture: (() -> Unit)? = null
@@ -54,6 +56,7 @@ class ZoomImageView @JvmOverloads constructor(context: Context, attrs: Attribute
             return true
         }
         override fun onDoubleTap(e: MotionEvent): Boolean {
+            onDoubleTapAction?.let { it(); return true }
             val s = currentScale()
             val target = if (s < cropScale * 2.4f) s * 2.5f else cropScale
             zoomAround(target / s, e.x, e.y)

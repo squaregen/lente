@@ -17,6 +17,18 @@ import androidx.core.content.res.ResourcesCompat
  * text in sp so it follows the system font size). Used by the menus and settings.
  */
 object Ui {
+    /**
+     * The app draws at the phone's standard size, ignoring the system "font size" and
+     * "display size" settings: her phone is set very large, which made the app's own
+     * (already large) buttons and texts enormous. Sizes inside the app are adjustable on their own.
+     */
+    fun standardScale(base: Context): Context {
+        val c = android.content.res.Configuration(base.resources.configuration)
+        c.fontScale = 1f
+        c.densityDpi = android.util.DisplayMetrics.DENSITY_DEVICE_STABLE
+        return base.createConfigurationContext(c)
+    }
+
     fun dp(ctx: Context, v: Int): Int =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), ctx.resources.displayMetrics).toInt()
 

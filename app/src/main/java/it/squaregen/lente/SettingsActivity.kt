@@ -14,6 +14,10 @@ class SettingsActivity : ComponentActivity() {
 
     private lateinit var prefs: Prefs
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(Ui.standardScale(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
@@ -38,8 +42,8 @@ class SettingsActivity : ComponentActivity() {
     private fun build(c: LinearLayout) {
         c.addView(Ui.button(this, "Torna alla lente", R.drawable.ic_close) { finish() })
 
-        c.addView(Ui.header(this, "Pulsante Colori"))
-        c.addView(Ui.note(this, "Scegli quali combinazioni di colori usare quando tocchi Colori."))
+        c.addView(Ui.header(this, "Colori nel menu"))
+        c.addView(Ui.note(this, "Scegli quali combinazioni di colori proporre quando tocchi Colori nel menu."))
         for (mode in ColorModes.ALL) {
             c.addView(Ui.toggle(this, mode.label, { prefs.enabledModes.contains(mode.id) }) { on ->
                 val set = prefs.enabledModes.toMutableSet()
@@ -49,11 +53,11 @@ class SettingsActivity : ComponentActivity() {
         }
 
         c.addView(Ui.header(this, "Schermo"))
-        c.addView(Ui.choice(this, "Nascondi i pulsanti dopo",
+        c.addView(Ui.choice(this, "Attenua i pulsanti dopo",
             listOf(5 to "5 secondi", 8 to "8 secondi", 15 to "15 secondi", 30 to "30 secondi", 0 to "mai (sconsigliato)"),
             { prefs.autoHideSec }) { prefs.autoHideSec = it })
-        c.addView(Ui.note(this, "Nascondere i pulsanti protegge lo schermo dalle immagini che restano impresse. " +
-            "Tocca lo schermo per farli ricomparire."))
+        c.addView(Ui.note(this, "I pulsanti negli angoli diventano tenui (ma funzionano sempre) dopo questo tempo " +
+            "o appena tocchi l'immagine: così proteggono lo schermo dalle immagini che restano impresse."))
         c.addView(Ui.choice(this, "Spegni lo schermo se non lo usi da",
             listOf(5 to "5 minuti", 10 to "10 minuti", 20 to "20 minuti", 30 to "30 minuti", 0 to "mai"),
             { prefs.screenOffMin }) { prefs.screenOffMin = it })
@@ -76,12 +80,6 @@ class SettingsActivity : ComponentActivity() {
             "oppure scorri dal basso e tieni premuto."))
 
         c.addView(Ui.header(this, "Testo"))
-        c.addView(Ui.toggle(this, "Proponi la lettura quando vedo un testo", { prefs.textDetect }) { prefs.textDetect = it })
-        c.addView(Ui.toggle(this, "Leggi: guidami a inquadrare il foglio", { prefs.guidedCapture }) { prefs.guidedCapture = it })
-        c.addView(Ui.toggle(this, "Suggerimenti a voce e suoni", { prefs.voiceHints }) { prefs.voiceHints = it })
-        c.addView(Ui.note(this, "Con la guida, Leggi allarga l'inquadratura e ti dice come spostare il telefono finché " +
-            "tutto il testo è dentro, poi scatta da solo (vibra quando è inquadrato e quando scatta). " +
-            "La voce è spenta, per essere discreti in pubblico. Tieni premuto Leggi per scattare subito."))
         c.addView(Ui.choice(this, "Modo di lettura iniziale",
             listOf("page" to "pagina", "line" to "riga che scorre", "words" to "poche parole alla volta", "photo" to "foto guidata"),
             { prefs.readerMode }) { prefs.readerMode = it })
@@ -100,11 +98,10 @@ class SettingsActivity : ComponentActivity() {
 
         c.addView(Ui.header(this, "Come si usa"))
         c.addView(Ui.note(this,
-            "• Pizzica lo schermo o usa i tasti del volume per ingrandire.\n" +
+            "• Ingrandisci con i pulsanti rotondi più e meno, pizzicando lo schermo o con i tasti del volume.\n" +
             "• Tocca un punto per metterlo a fuoco.\n" +
-            "• Ferma blocca l'immagine: poi puoi ingrandirla e spostarla con il dito.\n" +
-            "• Leggi fotografa il testo e lo mostra grande, e può leggerlo ad alta voce.\n" +
-            "• Colori cambia i contrasti (tieni premuto per tutte le regolazioni).\n" +
+            "• Doppio tocco: fotografa il testo e lo apre grande nel lettore.\n" +
+            "• Tutto il resto (luce, immagine ferma, colori, contrasto) è nel menu, in alto a destra.\n" +
             "• Se l'immagine resta sfocata, allontana un po' il telefono e usa lo zoom."))
     }
 }

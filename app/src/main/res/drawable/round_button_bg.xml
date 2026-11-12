@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Small round on-screen button: dark and translucent, with a dim outline (kind to OLED screens). -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/pressed">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#99000000" />
+            <stroke android:width="2dp" android:color="@color/fg_dim" />
+        </shape>
+    </item>
+</ripple>

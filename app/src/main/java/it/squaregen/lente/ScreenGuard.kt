@@ -15,6 +15,13 @@ import android.view.View
 class ScreenGuard(private val views: List<View>, private val shiftTargets: List<View>, private val dpUnit: Float) {
 
     var autoHideMs = 8000L
+    /** Opacity when shown. */
+    var shownAlpha = 1f
+    /**
+     * Opacity when "hidden". Above 0 the views stay on screen, faint but still tappable (for
+     * buttons whose place the user knows); 0 removes them.
+     */
+    var hiddenAlpha = 0f
     var onVisibilityChanged: ((Boolean) -> Unit)? = null
     var visible = true
         private set
@@ -50,9 +57,9 @@ class ScreenGuard(private val views: List<View>, private val shiftTargets: List<
             visible = true
             views.forEach {
                 it.animate().cancel()
-                it.alpha = 0f
+                if (it.visibility != View.VISIBLE) it.alpha = 0f
                 it.visibility = View.VISIBLE
-                it.animate().alpha(1f).setDuration(150).start()
+                it.animate().alpha(shownAlpha).setDuration(150).start()
             }
             onVisibilityChanged?.invoke(true)
         }
@@ -71,7 +78,8 @@ class ScreenGuard(private val views: List<View>, private val shiftTargets: List<
         visible = false
         views.forEach { v ->
             v.animate().cancel()
-            v.animate().alpha(0f).setDuration(400).withEndAction { if (!visible) v.visibility = View.GONE }.start()
+            if (hiddenAlpha > 0f) v.animate().alpha(hiddenAlpha).setDuration(400).start()
+            else v.animate().alpha(0f).setDuration(400).withEndAction { if (!visible) v.visibility = View.GONE }.start()
         }
         onVisibilityChanged?.invoke(false)
     }

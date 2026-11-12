@@ -126,6 +126,10 @@ class ReaderActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private val main = Handler(Looper.getMainLooper())
     private var lastTouch = SystemClock.elapsedRealtime()
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(Ui.standardScale(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)

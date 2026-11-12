@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Landscape: zoom in top-left, zoom out bottom-left, menu top-right. Nothing else on the picture. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
@@ -9,14 +10,14 @@
         android:id="@+id/preview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:contentDescription="Immagine della fotocamera ingrandita. Pizzica per lo zoom, tocca per mettere a fuoco." />
+        android:contentDescription="Immagine ingrandita. Pizzica per lo zoom, tocca per mettere a fuoco, doppio tocco per leggere il testo." />
 
     <it.squaregen.lente.ZoomImageView
         android:id="@+id/frozen"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/bg"
-        android:contentDescription="Immagine ferma. Pizzica per ingrandire, trascina per spostarti."
+        android:contentDescription="Immagine ferma. Pizzica per ingrandire, trascina per spostarti, doppio tocco per leggere il testo."
         android:visibility="gone" />
 
     <!-- Reading guide: darkens everything except a horizontal band (as on desktop video magnifiers). -->
@@ -38,125 +39,66 @@
         android:importantForAccessibility="no"
         android:visibility="gone" />
 
-    <!-- Short-lived big message (zoom level, colour mode name...). -->
+    <!-- Only for problems (e.g. camera not available). -->
     <TextView
         android:id="@+id/bigLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
-        android:layout_marginTop="32dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
+        android:layout_gravity="center"
+        android:layout_margin="24dp"
         android:background="@drawable/chip_bg"
         android:gravity="center"
-        android:paddingStart="24dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="12dp"
+        android:paddingStart="20dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="10dp"
         android:textColor="@color/fg"
-        android:textSize="40sp"
+        android:textSize="26sp"
         android:textStyle="bold"
         android:accessibilityLiveRegion="polite"
         android:visibility="gone" />
 
-    <!-- Landscape: the buttons form a column on the right, so the picture keeps the full height. -->
-    <LinearLayout
-        android:id="@+id/bottom"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="bottom"
-        android:orientation="horizontal">
+    <ImageView
+        android:id="@+id/btnZoomOut"
+        style="@style/RoundButton"
+        android:layout_gravity="bottom|start"
+        android:contentDescription="Riduci lo zoom"
+        android:src="@drawable/ic_minus" />
 
-        <TextView
-            android:id="@+id/textChip"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="24dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/chip_bg"
-            android:drawableStart="@drawable/ic_text"
-            android:drawablePadding="14dp"
-            android:gravity="center_vertical"
-            android:minHeight="80dp"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:text="Testo trovato: tocca qui per leggerlo grande"
-            android:textColor="@color/fg"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:visibility="gone" />
+    <ImageView
+        android:id="@+id/btnZoomIn"
+        style="@style/RoundButton"
+        android:layout_gravity="top|start"
+        android:contentDescription="Aumenta lo zoom"
+        android:src="@drawable/ic_plus" />
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="0.001" />
+    <ImageView
+        android:id="@+id/btnMenu"
+        style="@style/RoundButton"
+        android:layout_gravity="top|end"
+        android:contentDescription="Menu"
+        android:src="@drawable/ic_menu" />
 
-        <LinearLayout
-            android:id="@+id/controls"
-            android:layout_width="220dp"
-            android:layout_height="match_parent"
-            android:background="#D9000000"
-            android:gravity="center_vertical"
-            android:orientation="vertical"
-            android:paddingStart="6dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="6dp">
-
-            <SeekBar
-                android:id="@+id/zoomBar"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:visibility="gone" />
-
-            <LinearLayout style="@style/LandRow">
-                <TextView android:id="@+id/btnZoomIn" style="@style/BigButtonLand"
-                    android:contentDescription="Aumenta lo zoom" android:drawableTop="@drawable/ic_plus" android:text="Più" />
-                <TextView android:id="@+id/btnZoomOut" style="@style/BigButtonLand"
-                    android:contentDescription="Riduci lo zoom" android:drawableTop="@drawable/ic_minus" android:text="Meno" />
-            </LinearLayout>
-            <LinearLayout style="@style/LandRow">
-                <TextView android:id="@+id/btnLight" style="@style/BigButtonLand"
-                    android:drawableTop="@drawable/ic_light" android:text="Luce" />
-                <TextView android:id="@+id/btnColors" style="@style/BigButtonLand"
-                    android:drawableTop="@drawable/ic_contrast" android:text="Colori" />
-            </LinearLayout>
-            <LinearLayout style="@style/LandRow">
-                <TextView android:id="@+id/btnFreeze" style="@style/BigButtonLand"
-                    android:drawableTop="@drawable/ic_pause" android:text="Ferma" />
-                <TextView android:id="@+id/btnRead" style="@style/BigButtonLand"
-                    android:drawableTop="@drawable/ic_text" android:text="Leggi" />
-            </LinearLayout>
-            <LinearLayout style="@style/LandRow">
-                <TextView android:id="@+id/btnMore" style="@style/BigButtonLand"
-                    android:drawableTop="@drawable/ic_menu" android:text="Altro" />
-            </LinearLayout>
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- "Altro" menu: filled in from code. -->
+    <!-- Menu: opens on the right; tapping the picture on the left closes it. -->
     <ScrollView
-        android:id="@+id/morePanel"
-        android:layout_width="match_parent"
+        android:id="@+id/menuPanel"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:background="#F2000000"
+        android:layout_gravity="end"
+        android:background="#F5000000"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">
 
         <LinearLayout
-            android:id="@+id/moreContent"
+            android:id="@+id/menuContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="16dp"
-            android:paddingTop="24dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="32dp" />
+            android:paddingStart="12dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="16dp" />
     </ScrollView>
 
     <!-- Shown when the camera permission is missing. -->
@@ -177,7 +119,7 @@
             android:lineSpacingMultiplier="1.4"
             android:text="Per ingrandire serve la fotocamera."
             android:textColor="@color/fg"
-            android:textSize="30sp"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
         <TextView
@@ -189,10 +131,10 @@
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:minHeight="96dp"
+            android:minHeight="80dp"
             android:text="Consenti la fotocamera"
             android:textColor="@color/fg"
-            android:textSize="26sp"
+            android:textSize="22sp"
             android:textStyle="bold" />
     </LinearLayout>
 </FrameLayout>

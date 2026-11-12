@@ -11,20 +11,29 @@ Per installarla sul telefono: apri il link, scarica il file, toccalo e consenti
 
 ## Cosa fa
 
+Lo schermo principale è solo l'immagine, con tre piccoli pulsanti rotondi negli angoli
+(tenui, per non coprire l'immagine e non rovinare lo schermo):
+
+- **in orizzontale**: **+** in alto a sinistra, **−** in basso a sinistra, **menu** in alto a destra;
+- **in verticale**: **−** in basso a sinistra, **+** in basso a destra, **menu** in alto a destra.
+
 | Funzione | Come si usa |
 |---|---|
-| Zoom | Pizzica lo schermo, usa **Più/Meno** o i **tasti del volume**. Fino a 30 volte (impostabile fino a 120): oltre lo zoom della fotocamera l'immagine viene ingrandita ancora |
-| Luce | **Luce** accende la torcia del telefono (lo stato viene ricordato) |
-| Colori ad alto contrasto | **Colori** passa tra le modalità; tieni premuto per contrasto e luminosità |
-| Immagine ferma | **Ferma** blocca l'immagine: poi la ingrandisci e la sposti con il dito (si scambia da sola con una foto ad alta risoluzione, così resta nitida) |
-| Lettura guidata | **Leggi** allarga l'inquadratura e guida a inquadrare tutto il foglio ("Allontana il telefono", "Sposta a sinistra"...), poi scatta da solo quando il telefono è fermo. Tieni premuto **Leggi** per scattare subito |
+| Zoom | Pulsanti **+** e **−**, pizzicando lo schermo o con i **tasti del volume**. Fino a 30 volte (impostabile fino a 120) |
+| Messa a fuoco | Tocca un punto dell'immagine |
+| Leggere il testo | **Doppio tocco** sull'immagine: fotografa il testo e lo apre grande nel lettore |
+| Menu | Luce, immagine ferma, colori ad alto contrasto, contrasto e luminosità, banda di lettura, blocco del fuoco, blocco nell'app, impostazioni, uscita. Si chiude toccando l'immagine |
+| Immagine ferma | Dal menu: poi la ingrandisci e la sposti con il dito (si scambia da sola con una foto ad alta risoluzione, così resta nitida) |
 | Modi di lettura | Nel lettore, **Modo** passa tra **Pagina** (testo grande a capo automatico), **Riga** (una riga enorme che scorre: gli occhi stanno fermi), **Parole** (poche parole alla volta, grandi quanto lo schermo) e **Foto** (la foto originale ingrandita che avanza da sola lungo la riga e poi torna a capo) |
-| Voce | Spenta di default, per essere discreti in pubblico: **Ascolta** legge il testo solo se lo tocchi; i suggerimenti a voce si accendono nelle impostazioni. La guida usa messaggi grandi e vibrazioni |
-| Proposta automatica | Quando la fotocamera vede un testo compare "Testo trovato: tocca qui per leggerlo grande" |
-| Guida di lettura | Una banda orizzontale lascia visibile solo la riga che stai leggendo |
+| Voce | Spenta: **Ascolta** nel lettore legge il testo solo se lo tocchi |
 | Leggere una foto | Da Galleria, WhatsApp o altre app: **Condividi → Leggi con Lente** |
-| Orizzontale | Si usa in orizzontale (pulsanti in colonna a destra); verticale o automatico nelle impostazioni |
 | Riquadro rapido | Aggiungi "Lente" alle impostazioni rapide (tendina) per aprirla con un tocco |
+
+Nessuna scritta compare sopra l'immagine: chi la usa sa già cosa fanno i comandi.
+
+Le dimensioni dell'app non dipendono dalle impostazioni di sistema "dimensione carattere" e
+"dimensione schermo" (sul suo telefono sono al massimo e rendevano tutto enorme): pulsanti e
+testi hanno la loro misura, regolabile dentro l'app.
 
 ## Messa a fuoco intelligente
 
@@ -36,19 +45,10 @@ Oltre all'autofocus continuo del telefono, l'app:
 - **mette a fuoco prima di fotografare** il testo da leggere;
 - nei modi a due colori **sceglie da sola la soglia tra inchiostro e carta** in base alla luce
   (contrasto automatico), regolabile a mano con Luminosità;
-- **si accorge quando il telefono è troppo vicino**: se l'obiettivo è già alla distanza minima
-  e l'immagine resta sfocata, dice "Troppo vicino: allontana il telefono e usa lo zoom"
-  (è la causa più comune di immagine sfocata con le lenti digitali);
 - usa la **stabilizzazione dell'anteprima** quando il telefono la supporta, utile a zoom alti;
-- permette di **bloccare il fuoco** (menu Altro), ad esempio per scrivere sotto la fotocamera.
+- permette di **bloccare il fuoco** (menu), ad esempio per scrivere sotto la fotocamera.
 
-## Perché la lettura guidata
-
-Chi è ipovedente fatica a capire a che distanza tenere il telefono per prendere tutto il testo.
-Le app di riferimento (KNFB Reader, Seeing AI, Lookout) risolvono così: inquadratura larga,
-indicazioni su come spostare il telefono, scatto automatico quando il testo è tutto dentro.
-Il riconoscimento poi lavora su una foto ad alta risoluzione dell'intero sensore, e la lettura
-avviene sullo schermo nel modo preferito, senza dover muovere il telefono lungo le righe.
+## Lettura
 
 Le visualizzazioni a riga e a parole sono quelle dei videoingranditori da tavolo con sintesi
 vocale; la foto guidata riproduce il movimento che si fa a mano con una lente (qualche parola
@@ -61,10 +61,10 @@ sul testo stampato, gratuito, funziona senza internet e le foto non escono dal t
 ## Non si esce per sbaglio
 
 - Schermo intero immersivo: il primo scorrimento dal bordo mostra solo le barre, non esce.
-- Il gesto/tasto **Indietro non chiude l'app**: per uscire c'è **Altro → Esci dall'app**.
+- Il gesto/tasto **Indietro non chiude l'app**: per uscire c'è **menu → Esci dall'app**.
 - I bordi in basso sono riservati all'app (dove la mano impugna il telefono) e i tocchi che
   partono dal bordo estremo vengono ignorati.
-- **Blocca dentro l'app** (menu Altro, o automatico all'apertura dalle impostazioni) usa il
+- **Blocca dentro l'app** (menu, o automatico all'apertura dalle impostazioni) usa il
   "Blocco app" di Android: anche Home e Recenti non fanno uscire.
 - In orizzontale si gira solo tra i due lati orizzontali: prendendo in mano il telefono non
   passa mai in verticale per sbaglio.
@@ -74,7 +74,7 @@ sul testo stampato, gratuito, funziona senza internet e le foto non escono dal t
 
 Una precedente app aveva lasciato le icone impresse sullo schermo OLED. Qui:
 
-- i pulsanti **si nascondono da soli** dopo 8 secondi (regolabile); un tocco li fa ricomparire;
+- i pulsanti negli angoli sono piccoli e scuri, e **diventano tenui** dopo 8 secondi (regolabile) o appena si tocca l'immagine, restando utilizzabili;
 - quando sono visibili **si spostano di qualche pixel ogni 30 secondi** (pixel shift, come i
   televisori OLED);
 - i pannelli sono su **sfondo nero** (su OLED il nero è spento e non si consuma);
@@ -89,10 +89,10 @@ Una precedente app aveva lasciato le icone impresse sullo schermo OLED. Qui:
   bianco/blu, verde/nero, con contrasto e luminosità regolabili; immagine ferma; banda di lettura.
 - **WCAG 2.2 / EN 301 549** (normativa europea di accessibilità):
   contrasto dei comandi giallo su nero circa 17:1 (oltre il livello AAA 7:1, criterio 1.4.6);
-  pulsanti di almeno 76-80 dp (oltre 2.5.5 e le linee guida Android di 48 dp);
+  pulsanti di almeno 56 dp sull'immagine e 76-80 dp nei menu (oltre 2.5.5 e le linee guida Android di 48 dp);
   testi in sp che seguono la dimensione del carattere di sistema (1.4.4);
   interlinea 1,5 e spaziatura delle lettere nel lettore (1.4.12);
-  nessun lampeggiamento (2.3.1); tempo di scomparsa dei pulsanti regolabile o disattivabile (2.2.1);
+  nessun lampeggiamento (2.3.1); tempo di attenuazione dei pulsanti regolabile o disattivabile (2.2.1);
   ogni comando ha un'etichetta testuale e una descrizione per TalkBack (1.1.1, 4.1.2);
   lo stato è sempre detto in parole ("Sì"/"No", "Luce accesa"), non solo con il colore (1.4.1).
 - **Font Atkinson Hyperlegible**, progettato dal Braille Institute per la leggibilità in
